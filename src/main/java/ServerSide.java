@@ -5,12 +5,17 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class ServerSide implements Runnable{
 
     private final ArrayList<ConnectionHandler> connections;
     private ServerSocket server;
     private boolean done;
+    private ExecutorService pool;
+
     public ServerSide () {
         connections = new ArrayList<>();
         done = false;
@@ -19,12 +24,14 @@ public class ServerSide implements Runnable{
     public void run() {
         try {
             server = new ServerSocket(9999);
+            pool = Executors.newCachedThreadPool();
             while (!done) {
                 Socket client = server.accept();
                 ConnectionHandler handler = new ConnectionHandler(client);
                 connections.add(handler);
+                pool.execute(handler);
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             shutdown();
         }
 
@@ -41,6 +48,7 @@ public class ServerSide implements Runnable{
     public void shutdown() {
         try {
             done = true;
+            pool.shutdown();
             if (!server.isClosed()) {
                 server.close();
             }
@@ -110,5 +118,10 @@ public class ServerSide implements Runnable{
         public void sendMessage(String message) {
             out.println(message);
         }
+    }
+
+    public static void main(String[] args) {
+        ServerSide server = new ServerSide();
+        server.run();
     }
 }
